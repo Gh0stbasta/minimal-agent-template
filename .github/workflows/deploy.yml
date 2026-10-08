@@ -1,0 +1,187 @@
+# Main branch deployment.
+# Builds frontend/backend as a gate, applies Terraform using GitHub OIDC, verifies /health,
+# then builds the frontend against the deployed API and publishes it to S3/CloudFront.
+# Steps for infra/, app/frontend/ and app/backend/ are skipped until those directories contain code.
+#
+# Requirements once infra/ contains Terraform code:
+# - Repository secret AWS_ROLE_ARN (IAM role trusted for GitHub OIDC)
+# - Terraform output api_endpoint (optional; enables the health check)
+# - Frontend publishing additionally needs the Terraform outputs frontend_bucket_name,
+#   cloudfront_distribution_id and frontend_url plus scripts/deploy-frontend.sh;
+#   scripts/smoke-test.sh is used when it exists.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false # never interrupt a running terraform apply
+
+env:
+  AWS_REGION: eu-central-1
+  TF_VERSION: 1.16.4
+  TF_DIR: infra
+  FRONTEND_DIR: app/frontend
+  BACKEND_DIR: app/backend
+  NODE_VERSION: "22"
+
+jobs:
+  build:
+    name: Build ${{ matrix.project }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        project: [app/frontend, app/backend]
+    defaults:
+      run:
+        working-directory: ${{ matrix.project }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Report skipped build
+        if: hashFiles(format('{0}/package.json', matrix.project)) == ''
+        working-directory: .
+        run: echo "::notice::No ${{ matrix.project }}/package.json yet - build skipped."
+
+      - name: Setup Node.js
+        if: hashFiles(format('{0}/package.json', matrix.project)) != ''
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        if: hashFiles(format('{0}/package.json', matrix.project)) != ''
+        run: npm ci
+
+      # High/critical vulnerabilities in production dependencies fail the build.
+      # If scripts/check_npm_audit.py exists, it may allow time-boxed exceptions
+      # listed in .github/npm-audit-allowlist.json.
+      - name: Audit production dependencies
+        if: hashFiles(format('{0}/package.json', matrix.project)) != ''
+        run: |
+          if [ -f "$GITHUB_WORKSPACE/scripts/check_npm_audit.py" ]; then
+            npm audit --omit=dev --json > "$RUNNER_TEMP/audit.json" || true
+            python3 "$GITHUB_WORKSPACE/scripts/check_npm_audit.py" "$RUNNER_TEMP/audit.json" "$GITHUB_WORKSPACE/.github/npm-audit-allowlist.json"
+          else
+            npm audit --omit=dev --audit-level=high
+          fi
+
+      - name: Build
+        if: hashFiles(format('{0}/package.json', matrix.project)) != ''
+        run: npm run build
+
+  terraform:
+    name: Terraform Apply
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # required for GitHub OIDC
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Report skipped Terraform steps
+        if: hashFiles(format('{0}/**/*.tf', env.TF_DIR)) == ''
+        run: echo "::notice::No Terraform configuration in $TF_DIR/ yet - Terraform steps skipped."
+
+      - name: Configure AWS credentials (OIDC)
+        if: hashFiles(format('{0}/**/*.tf', env.TF_DIR)) != ''
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-deploy-${{ github.run_id }}
+
+      - name: Verify AWS identity
+        if: hashFiles(format('{0}/**/*.tf', env.TF_DIR)) != ''
+        run: aws sts get-caller-identity
+
+      - name: Setup Terraform
+        if: hashFiles(format('{0}/**/*.tf', env.TF_DIR)) != ''
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false # keep `terraform show -json` output clean
+
+      - name: Terraform init
+        if: hashFiles(format('{0}/**/*.tf', env.TF_DIR)) != ''
+        run: terraform -chdir="$TF_DIR" init -input=false
+
+      - name: Setup Node.js (Lambda bundle)
+        if: hashFiles(format('{0}/**/*.tf', env.TF_DIR)) != '' && hashFiles(format('{0}/package.json', env.BACKEND_DIR)) != ''
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Build Lambda bundle
+        if: hashFiles(format('{0}/**/*.tf', env.TF_DIR)) != '' && hashFiles(format('{0}/package.json', env.BACKEND_DIR)) != ''
+        working-directory: ${{ env.BACKEND_DIR }}
+        run: |
+          npm ci
+          npm run build
+
+      # Project-specific Terraform variables can be passed here as TF_VAR_<name> from vars/secrets.
+      - name: Terraform plan
+        if: hashFiles(format('{0}/**/*.tf', env.TF_DIR)) != ''
+        run: terraform -chdir="$TF_DIR" plan -input=false -lock-timeout=5m -out=tfplan
+
+      - name: Enforce mandatory tags
+        if: hashFiles(format('{0}/**/*.tf', env.TF_DIR)) != '' && hashFiles('scripts/check_tags.py') != ''
+        run: |
+          terraform -chdir="$TF_DIR" show -json tfplan > plan.json
+          python3 scripts/check_tags.py plan.json
+
+      - name: Terraform apply
+        if: hashFiles(format('{0}/**/*.tf', env.TF_DIR)) != ''
+        run: terraform -chdir="$TF_DIR" apply -input=false -lock-timeout=5m tfplan
+
+      - name: Verify health endpoint
+        if: hashFiles(format('{0}/**/*.tf', env.TF_DIR)) != ''
+        run: |
+          endpoint="$(terraform -chdir="$TF_DIR" output -raw api_endpoint 2>/dev/null || true)"
+          if [ -z "$endpoint" ]; then
+            echo "::notice::No api_endpoint output - health check skipped."
+            exit 0
+          fi
+          curl --fail --silent --show-error --retry 5 --retry-delay 5 --retry-all-errors "${endpoint%/}/health"
+
+      # Frontend deployment: build against the deployed API, then publish.
+      - name: Setup Node.js (frontend)
+        if: hashFiles(format('{0}/**/*.tf', env.TF_DIR)) != '' && hashFiles(format('{0}/package.json', env.FRONTEND_DIR)) != '' && hashFiles('scripts/deploy-frontend.sh') != ''
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Build frontend for this environment
+        if: hashFiles(format('{0}/**/*.tf', env.TF_DIR)) != '' && hashFiles(format('{0}/package.json', env.FRONTEND_DIR)) != '' && hashFiles('scripts/deploy-frontend.sh') != ''
+        run: |
+          VITE_API_BASE_URL="$(terraform -chdir="$TF_DIR" output -raw api_endpoint)"
+          export VITE_API_BASE_URL
+          npm ci --prefix "$FRONTEND_DIR"
+          npm run build --prefix "$FRONTEND_DIR"
+
+      - name: Publish frontend to S3 and invalidate CloudFront
+        if: hashFiles(format('{0}/**/*.tf', env.TF_DIR)) != '' && hashFiles(format('{0}/package.json', env.FRONTEND_DIR)) != '' && hashFiles('scripts/deploy-frontend.sh') != ''
+        run: |
+          scripts/deploy-frontend.sh "$FRONTEND_DIR/dist" \
+            "$(terraform -chdir="$TF_DIR" output -raw frontend_bucket_name)" \
+            "$(terraform -chdir="$TF_DIR" output -raw cloudfront_distribution_id)"
+
+      # Read-only checks of the live system; a failure fails the deployment run.
+      - name: Smoke tests
+        if: hashFiles(format('{0}/**/*.tf', env.TF_DIR)) != '' && hashFiles(format('{0}/package.json', env.FRONTEND_DIR)) != '' && hashFiles('scripts/deploy-frontend.sh') != '' && hashFiles('scripts/smoke-test.sh') != ''
+        run: |
+          scripts/smoke-test.sh \
+            "$(terraform -chdir="$TF_DIR" output -raw frontend_url)" \
+            "$(terraform -chdir="$TF_DIR" output -raw api_endpoint)"
+
+      - name: Report skipped frontend deployment
+        if: hashFiles(format('{0}/package.json', env.FRONTEND_DIR)) == '' || hashFiles('scripts/deploy-frontend.sh') == ''
+        run: echo "::notice::No $FRONTEND_DIR/package.json or scripts/deploy-frontend.sh yet - frontend deployment skipped."
