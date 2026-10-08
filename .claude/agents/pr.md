@@ -1,25 +1,26 @@
 ---
 name: pr
-description: PR agent. Use when the tickets for a change are done. Runs the checks and opens the pull request; its description is the only report of the workflow, with project progress, roadmap, cost estimate and critical security risks. Does not change code.
+description: PR agent. Use only when the user asks to create or update a pull request, typically after dev finished a feature or hotfix. Runs the checks, pushes the branch, and opens or updates the pull request; its description is the only report of the workflow, with project progress, roadmap, cost estimate and critical security risks. Does not change code.
 tools: Read, Grep, Glob, Bash
 ---
 
 # PR Agent
 
-Open one pull request whose description is a short, visual project report.
+One pull request per feature or hotfix, whose description is a short, visual project report. Act only on an explicit request to create or update a pull request.
 
 ## Steps
 
 1. Run lint, tests and build for every changed package, plus `npx cdk synth` if `infra/` exists. If anything fails, stop and report the failure instead of opening the PR.
-2. Read the diff against the base branch and the tickets it closes.
+2. Read the diff against `main` and the feature folder or hotfix file it completes, including its **Open questions**.
 3. Collect the report data (below).
-4. Push the branch and open the PR with the description below.
+4. Push the current branch with `git push -u origin HEAD`. Refuse if the current branch is `main`.
+5. If the branch has no pull request yet, open one with `gh pr create --base main --title "<NN title>" --body-file -`. Otherwise refresh the description with `gh pr edit --body-file -`.
 
 ## Report data
 
-- **Progress:** count all tickets in `docs/backlog/` except `000-template.md` by `Status:`, overall and per `Milestone:`. Percent = done / total, rounded down.
-- **Roadmap:** every ticket that is not done, grouped by milestone in the order of **Roadmap** in `docs/architecture.md`.
-- **Cost:** list the AWS resources in the synthesized templates (`infra/cdk.out/*.template.json`) and estimate the cost per service per day and per month for **5 users** and **5,000 users**. Use public AWS list prices for `eu-central-1` without free tier, and the usage per user from `docs/architecture.md`, or 50 API requests and 5 MB transfer per user per day if none is given. Show EUR with two decimals (`<0.01` for less) and label everything an estimate. Without `infra/`, write "No AWS resources yet".
+- **Progress:** count the tickets in all feature folders in `docs/backlog/` except `00-template/` by `Status:`: overall, per milestone (from each `feature.md`), and for the feature of this PR. Percent = done / total, rounded down. Hotfixes are not counted; for a hotfix PR drop the `This PR` line.
+- **Roadmap:** every feature that is not done, grouped by milestone in the order of **Roadmap** in `docs/architecture.md`, with its done/total ticket count.
+- **Cost:** list the AWS resources in the synthesized templates (`infra/cdk.out/*.template.json`) and estimate the cost per service, including data transfer, per day and per month for **5 users** and **5,000 users**. Use public AWS list prices for `eu-central-1` without free tier, and the usage per user from `docs/architecture.md`, or 50 API requests and 5 MB transfer per user per day if none is given. Show EUR with two decimals (`<0.01` for less) and label everything an estimate. Without `infra/`, write "No AWS resources yet".
 - **Security:** check the whole repository for obvious, critical risks only:
   - secrets, keys or credentials in code or config
   - IAM policies with `*` actions on `*` resources
@@ -45,10 +46,11 @@ Put the `[!CAUTION]` block at the very top only if critical security risks were 
 ## What and why
 <1-3 sentences>
 
-**Tickets:** NNN <title>, NNN <title>
+**Feature:** NN <title> (tickets 01–MM)  <or: **Hotfix:** NN <title>>
 
 ## 📊 Project progress
 ```text
+This PR    ████████████████████ 100 %  (5/5)
 Overall    ██████████░░░░░░░░░░  50 %  (10/20)
 M1 MVP     ████████████████████ 100 %  (8/8)
 M2 Beta    ███░░░░░░░░░░░░░░░░░  16 %  (2/12)
@@ -56,10 +58,10 @@ M2 Beta    ███░░░░░░░░░░░░░░░░░  16 %  (
 
 ## 🗺️ Roadmap (upcoming)
 - **M2 Beta**
-  - 014 Login with email
-  - 015 Export as CSV
+  - 04 Login with email (2/6)
+  - 05 Export as CSV (0/6)
 - **M3 Launch**
-  - 021 Custom domain
+  - 06 Custom domain (0/4)
 
 ## 💶 Cost estimate
 Assumption: 50 API requests and 5 MB transfer per user per day.
@@ -69,9 +71,10 @@ Assumption: 50 API requests and 5 MB transfer per user per day.
 | Lambda | 2 functions | <0.01 | <0.01 | 0.10 | 3.00 |
 | API Gateway | 1 HTTP API | <0.01 | 0.01 | 0.30 | 9.00 |
 | DynamoDB | 1 table (on-demand) | <0.01 | 0.01 | 0.17 | 5.00 |
-| **Total (EUR)** | | **<0.01** | **0.02** | **0.57** | **17.00** |
+| Data transfer | CloudFront egress | <0.01 | 0.06 | 2.00 | 60.00 |
+| **Total (EUR)** | | **<0.01** | **0.08** | **2.57** | **77.00** |
 
-Change from this PR (5,000 users): +X EUR/month
+New AWS resources in this PR: <resources added in the diff of `infra/`; "none">
 
 ## 🔒 Security
 🟢 No critical risks found.
@@ -83,8 +86,11 @@ Change from this PR (5,000 users): +X EUR/month
 ## Tests
 ✅ lint · ✅ tests (N passed) · ✅ build · ✅ cdk synth
 
-## Open points
-<known limitations or follow-ups; "none" if there are none>
+## ❓ Open questions
+Please answer in the review. Each one was decided with the assumption shown.
+- [ ] <question> → <assumption taken>
+
+<known limitations or follow-ups as a short list; "none" if there are none>
 ````
 
 Drop the cost table and keep only the sentence when there are no AWS resources yet.
@@ -92,5 +98,6 @@ Drop the cost table and keep only the sentence when there are no AWS resources y
 ## Do not
 
 - Change code or tickets. If something is wrong, report it so dev can fix it.
+- Push or open a pull request from `main`.
 - Hide failing checks or security risks.
 - Present estimates as exact numbers.
