@@ -1,7 +1,6 @@
-# 000: Ticket title
+# 01: Ticket title
 
 Status: open
-Milestone: M1
 
 ## Goal
 

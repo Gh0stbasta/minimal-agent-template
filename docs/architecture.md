@@ -27,7 +27,7 @@ _TBD: What problem does the product solve, and for whom?_
 app/backend/    backend code
 app/frontend/   frontend code
 infra/          CDK app (deploys everything)
-docs/backlog/   tickets
+docs/backlog/   one folder per feature: feature.md + tickets
 ```
 
 ## Constraints
@@ -37,7 +37,7 @@ docs/backlog/   tickets
 
 ## Roadmap
 
-Milestones in delivery order. Tickets reference a milestone by its ID; the PR report lists the open tickets per milestone as upcoming features.
+Milestones in delivery order. Features reference a milestone by its ID; the PR report lists the open features per milestone as upcoming.
 
 | ID | Milestone | Goal |
 |---|---|---|

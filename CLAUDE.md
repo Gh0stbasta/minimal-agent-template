@@ -8,9 +8,9 @@ Minimal agent workflow. Optimize for speed; keep everything small.
 planner  →  dev  →  pr  →  human
 ```
 
-1. **planner** (`.claude/agents/planner.md`) turns a request into small tickets in `docs/backlog/`.
-2. **dev** (`.claude/agents/dev.md`) implements tickets with minimal tests.
-3. **pr** (`.claude/agents/pr.md`) runs the checks and opens the pull request. The PR description is the only report: progress, roadmap, cost estimate and critical security risks.
+1. **planner** (`.claude/agents/planner.md`) plans a request as features of 3 to 10 tickets, one folder per feature in `docs/backlog/`.
+2. **dev** (`.claude/agents/dev.md`) implements one feature ticket by ticket with minimal tests, reading only its own feature folder, and proposes the pull request after the last ticket.
+3. **pr** (`.claude/agents/pr.md`) runs only when a pull request is requested: it runs the checks and opens one pull request per feature. The PR description is the only report: progress, roadmap, cost estimate and critical security risks.
 
 For a tiny change, skip the planner and go straight to dev.
 
@@ -19,7 +19,7 @@ For a tiny change, skip the planner and go straight to dev.
 Read only what the task needs:
 
 - `docs/architecture.md` – goal, stack, structure, constraints, roadmap, decisions
-- `docs/backlog/` – tickets
+- `docs/backlog/NN-feature/` – the feature being worked on (not the other features)
 
 ## Rules
 

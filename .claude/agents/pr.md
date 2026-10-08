@@ -1,24 +1,24 @@
 ---
 name: pr
-description: PR agent. Use when the tickets for a change are done. Runs the checks and opens the pull request; its description is the only report of the workflow, with project progress, roadmap, cost estimate and critical security risks. Does not change code.
+description: PR agent. Use only when the user asks to create a pull request, typically after dev finished a feature. Runs the checks and opens the pull request; its description is the only report of the workflow, with project progress, roadmap, cost estimate and critical security risks. Does not change code.
 tools: Read, Grep, Glob, Bash
 ---
 
 # PR Agent
 
-Open one pull request whose description is a short, visual project report.
+Open one pull request per feature whose description is a short, visual project report. Act only on an explicit request to create a pull request.
 
 ## Steps
 
 1. Run lint, tests and build for every changed package, plus `npx cdk synth` if `infra/` exists. If anything fails, stop and report the failure instead of opening the PR.
-2. Read the diff against the base branch and the tickets it closes.
+2. Read the diff against the base branch and the feature folder it completes.
 3. Collect the report data (below).
 4. Push the branch and open the PR with the description below.
 
 ## Report data
 
-- **Progress:** count all tickets in `docs/backlog/` except `000-template.md` by `Status:`, overall and per `Milestone:`. Percent = done / total, rounded down.
-- **Roadmap:** every ticket that is not done, grouped by milestone in the order of **Roadmap** in `docs/architecture.md`.
+- **Progress:** count the tickets in all feature folders in `docs/backlog/` except `00-template/` by `Status:`: overall, per milestone (from each `feature.md`), and for the feature of this PR. Percent = done / total, rounded down.
+- **Roadmap:** every feature that is not done, grouped by milestone in the order of **Roadmap** in `docs/architecture.md`, with its done/total ticket count.
 - **Cost:** list the AWS resources in the synthesized templates (`infra/cdk.out/*.template.json`) and estimate the cost per service per day and per month for **5 users** and **5,000 users**. Use public AWS list prices for `eu-central-1` without free tier, and the usage per user from `docs/architecture.md`, or 50 API requests and 5 MB transfer per user per day if none is given. Show EUR with two decimals (`<0.01` for less) and label everything an estimate. Without `infra/`, write "No AWS resources yet".
 - **Security:** check the whole repository for obvious, critical risks only:
   - secrets, keys or credentials in code or config
@@ -45,10 +45,11 @@ Put the `[!CAUTION]` block at the very top only if critical security risks were 
 ## What and why
 <1-3 sentences>
 
-**Tickets:** NNN <title>, NNN <title>
+**Feature:** NN <title> (tickets 01–MM)
 
 ## 📊 Project progress
 ```text
+This PR    ████████████████████ 100 %  (5/5)
 Overall    ██████████░░░░░░░░░░  50 %  (10/20)
 M1 MVP     ████████████████████ 100 %  (8/8)
 M2 Beta    ███░░░░░░░░░░░░░░░░░  16 %  (2/12)
@@ -56,10 +57,10 @@ M2 Beta    ███░░░░░░░░░░░░░░░░░  16 %  (
 
 ## 🗺️ Roadmap (upcoming)
 - **M2 Beta**
-  - 014 Login with email
-  - 015 Export as CSV
+  - 04 Login with email (2/6)
+  - 05 Export as CSV (0/6)
 - **M3 Launch**
-  - 021 Custom domain
+  - 06 Custom domain (0/4)
 
 ## 💶 Cost estimate
 Assumption: 50 API requests and 5 MB transfer per user per day.
