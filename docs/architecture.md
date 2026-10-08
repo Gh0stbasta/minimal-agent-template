@@ -32,12 +32,12 @@ docs/backlog/   tickets
 
 ## Constraints
 
-- Budget: _TBD_ EUR per month (AWS)
+- Usage per user: _TBD_ (cost estimates assume 50 API requests and 5 MB transfer per day if empty)
 - _TBD: compliance, data location, anything else the agents must respect._
 
 ## Roadmap
 
-Milestones in delivery order. Tickets reference a milestone by its ID.
+Milestones in delivery order. Tickets reference a milestone by its ID; the PR report lists the open tickets per milestone as upcoming features.
 
 | ID | Milestone | Goal |
 |---|---|---|

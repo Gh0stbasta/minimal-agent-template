@@ -18,7 +18,7 @@ For a tiny change, skip the planner and go straight to dev.
 
 Read only what the task needs:
 
-- `docs/architecture.md` – goal, stack, structure, constraints, budget, roadmap, decisions
+- `docs/architecture.md` – goal, stack, structure, constraints, roadmap, decisions
 - `docs/backlog/` – tickets
 
 ## Rules

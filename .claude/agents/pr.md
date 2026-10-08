@@ -18,8 +18,8 @@ Open one pull request whose description is a short, visual project report.
 ## Report data
 
 - **Progress:** count all tickets in `docs/backlog/` except `000-template.md` by `Status:`, overall and per `Milestone:`. Percent = done / total, rounded down.
-- **Roadmap:** milestones from **Roadmap** in `docs/architecture.md`. A milestone is done when all its tickets are done, active when any ticket is in progress or done, otherwise planned.
-- **Cost:** list the AWS resources in the synthesized templates (`infra/cdk.out/*.template.json`) and estimate the monthly cost per service from public AWS list prices for `eu-central-1` at low usage, unless `docs/architecture.md` states expected usage. Compare the total with the budget in `docs/architecture.md`. Round to whole euros and label it an estimate. Without `infra/`, write "No AWS resources yet".
+- **Roadmap:** every ticket that is not done, grouped by milestone in the order of **Roadmap** in `docs/architecture.md`.
+- **Cost:** list the AWS resources in the synthesized templates (`infra/cdk.out/*.template.json`) and estimate the cost per service per day and per month for **5 users** and **5,000 users**. Use public AWS list prices for `eu-central-1` without free tier, and the usage per user from `docs/architecture.md`, or 50 API requests and 5 MB transfer per user per day if none is given. Show EUR with two decimals (`<0.01` for less) and label everything an estimate. Without `infra/`, write "No AWS resources yet".
 - **Security:** check the whole repository for obvious, critical risks only:
   - secrets, keys or credentials in code or config
   - IAM policies with `*` actions on `*` resources
@@ -54,30 +54,24 @@ M1 MVP     ████████████████████ 100 %  (
 M2 Beta    ███░░░░░░░░░░░░░░░░░  16 %  (2/12)
 ```
 
-## 🗺️ Roadmap
-```mermaid
-flowchart LR
-  M1["✅ M1 MVP<br/>8/8"] --> M2["🔄 M2 Beta<br/>2/12"] --> M3["⏳ M3 Launch<br/>0/5"]
-  classDef done fill:#2da44e,color:#fff
-  classDef active fill:#d4a72c,color:#000
-  classDef planned fill:#8c959f,color:#fff
-  class M1 done
-  class M2 active
-  class M3 planned
-```
+## 🗺️ Roadmap (upcoming)
+- **M2 Beta**
+  - 014 Login with email
+  - 015 Export as CSV
+- **M3 Launch**
+  - 021 Custom domain
 
-## 💶 Cost estimate (monthly)
-```text
-Budget     █░░░░░░░░░░░░░░░░░░░   7 %  (7 / 100 EUR)
-```
-| Service | Resources | Est. EUR/month |
-|---|---|---:|
-| Lambda | 2 functions | 1 |
-| DynamoDB | 1 table (on-demand) | 2 |
-| API Gateway | 1 HTTP API | 4 |
-| **Total** | | **7** |
+## 💶 Cost estimate
+Assumption: 50 API requests and 5 MB transfer per user per day.
 
-Change from this PR: +X EUR/month
+| Service | Resources | 5 users / day | 5 users / month | 5,000 users / day | 5,000 users / month |
+|---|---|---:|---:|---:|---:|
+| Lambda | 2 functions | <0.01 | <0.01 | 0.10 | 3.00 |
+| API Gateway | 1 HTTP API | <0.01 | 0.01 | 0.30 | 9.00 |
+| DynamoDB | 1 table (on-demand) | <0.01 | 0.01 | 0.17 | 5.00 |
+| **Total (EUR)** | | **<0.01** | **0.02** | **0.57** | **17.00** |
+
+Change from this PR (5,000 users): +X EUR/month
 
 ## 🔒 Security
 🟢 No critical risks found.
@@ -98,5 +92,5 @@ Drop the cost table and keep only the sentence when there are no AWS resources y
 ## Do not
 
 - Change code or tickets. If something is wrong, report it so dev can fix it.
-- Hide failing checks, cost overruns or security risks.
+- Hide failing checks or security risks.
 - Present estimates as exact numbers.
