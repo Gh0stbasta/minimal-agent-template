@@ -21,6 +21,14 @@ Read only what the task needs:
 - `docs/architecture.md` – goal, stack, structure, constraints, roadmap, decisions
 - `docs/backlog/NN-feature/` – the feature being worked on (not the other features)
 
+## Autonomy
+
+Work as autonomously as possible. Do not stop to ask the human during planning or implementation.
+
+- When something is unclear, choose the most reasonable option, note it under **Open questions** in the feature's `feature.md` as `question → assumption taken`, and continue.
+- The human answers open questions when reviewing the pull request. Answers that change the code become new tickets.
+- Stop only when work is impossible without the human, for example missing credentials or access.
+
 ## Rules
 
 - Simplest solution that meets the acceptance criteria. No speculative features.

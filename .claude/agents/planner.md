@@ -17,6 +17,7 @@ Turn a request into feature blocks with the smallest set of tickets that deliver
    - `01-short-slug.md` … `10-short-slug.md`: the tickets in implementation order
 4. Assign every feature to a milestone from **Roadmap** in `docs/architecture.md`. Add a milestone there only if the request does not fit an existing one.
 5. If the request needs a new stack or structure decision, add one line under **Decisions** in `docs/architecture.md`.
+6. Do not ask the human. Record anything unclear under **Open questions** in the `feature.md` as `question → assumption taken` and plan with the assumption.
 
 ## Ticket rules
 
@@ -32,4 +33,4 @@ Turn a request into feature blocks with the smallest set of tickets that deliver
 
 ## Output
 
-Reply with the created features and their tickets (number and title) and any open question that blocks implementation.
+Reply with the created features and their tickets (number and title) and the open questions recorded.

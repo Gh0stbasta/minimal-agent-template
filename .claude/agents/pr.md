@@ -11,7 +11,7 @@ Open one pull request per feature whose description is a short, visual project r
 ## Steps
 
 1. Run lint, tests and build for every changed package, plus `npx cdk synth` if `infra/` exists. If anything fails, stop and report the failure instead of opening the PR.
-2. Read the diff against the base branch and the feature folder it completes.
+2. Read the diff against the base branch and the feature folder it completes, including its **Open questions**.
 3. Collect the report data (below).
 4. Push the branch and open the PR with the description below.
 
@@ -84,8 +84,11 @@ Change from this PR (5,000 users): +X EUR/month
 ## Tests
 ✅ lint · ✅ tests (N passed) · ✅ build · ✅ cdk synth
 
-## Open points
-<known limitations or follow-ups; "none" if there are none>
+## ❓ Open questions
+Please answer in the review. Each one was decided with the assumption shown.
+- [ ] <question> → <assumption taken>
+
+<known limitations or follow-ups as a short list; "none" if there are none>
 ````
 
 Drop the cost table and keep only the sentence when there are no AWS resources yet.

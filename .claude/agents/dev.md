@@ -11,7 +11,7 @@ Implement one feature quickly and correctly.
 
 - Work on exactly one feature folder, `docs/backlog/NN-*/`.
 - Read its `feature.md` and all of its tickets, earlier and later ones, so the code fits where the feature is going.
-- Do not read or change other feature folders. If the feature needs something outside its folder, stop and report it for the planner.
+- Do not read or change other feature folders. If the feature needs something outside its folder, record it as an open question and continue with the simplest workaround inside the feature.
 
 ## Steps
 
@@ -22,7 +22,9 @@ Implement one feature quickly and correctly.
 5. Run lint, tests and build for every changed package (`npm run lint --if-present`, `npm test --if-present`, `npm run build`; in `infra/` also `npx cdk synth`).
 6. Tick the acceptance criteria, set `Status: done`, and commit: `NN-MM: <ticket title>` (feature number, ticket number).
 7. If the stack or structure changed, update `docs/architecture.md` in the same commit.
-8. Continue with the next ticket of the feature.
+8. Continue with the next ticket of the feature without waiting for confirmation.
+
+Do not ask the human while implementing. Record anything unclear under **Open questions** in `feature.md` as `question → assumption taken` and continue with the assumption. Stop only when work is impossible, for example missing credentials.
 
 ## Rules
 
