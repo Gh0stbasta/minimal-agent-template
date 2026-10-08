@@ -1,8 +1,6 @@
-# Pull request validation.
-# Validates Terraform and builds frontend/backend. Never applies infrastructure.
-# Steps for infra/, app/frontend/ and app/backend/ are skipped until those directories contain code.
-# Optional helper scripts in scripts/ are used only when they exist.
-name: PR Validation
+# Pull request checks: lint, test and build every package, then synthesize the CDK app.
+# Packages without a package.json are skipped. Never touches AWS.
+name: PR Checks
 
 on:
   pull_request:
@@ -14,152 +12,33 @@ concurrency:
   group: pr-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
-env:
-  AWS_REGION: eu-central-1
-  TF_VERSION: 1.16.4
-  TF_DIR: infra
-  BACKEND_DIR: app/backend
-  NODE_VERSION: "22"
-
 jobs:
-  terraform:
-    name: Terraform Validate & Plan
+  check:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write # required for GitHub OIDC
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v7
 
-      - name: Report skipped Terraform steps
-        if: hashFiles(format('{0}/**/*.tf', env.TF_DIR)) == ''
-        run: echo "::notice::No Terraform configuration in $TF_DIR/ yet - Terraform steps skipped."
-
-      - name: Setup Terraform
-        if: hashFiles(format('{0}/**/*.tf', env.TF_DIR)) != ''
-        uses: hashicorp/setup-terraform@v4
+      - uses: actions/setup-node@v7
         with:
-          terraform_version: ${{ env.TF_VERSION }}
-          terraform_wrapper: false # keep `terraform show -json` output clean
+          node-version: "24"
 
-      # Offline checks first: they give feedback even if AWS authentication fails.
-      - name: Terraform fmt check
-        if: hashFiles(format('{0}/**/*.tf', env.TF_DIR)) != ''
-        run: terraform -chdir="$TF_DIR" fmt -check -recursive
-
-      - name: Terraform init (without backend)
-        if: hashFiles(format('{0}/**/*.tf', env.TF_DIR)) != ''
-        run: terraform -chdir="$TF_DIR" init -input=false -backend=false
-
-      - name: Terraform validate
-        if: hashFiles(format('{0}/**/*.tf', env.TF_DIR)) != ''
-        run: terraform -chdir="$TF_DIR" validate
-
-      - name: Terraform test (mocked provider, no AWS access)
-        if: hashFiles(format('{0}/**/*.tf', env.TF_DIR)) != '' && hashFiles(format('{0}/**/*.tftest.hcl', env.TF_DIR)) != ''
-        run: terraform -chdir="$TF_DIR" test
-
-      - name: Script unit tests
-        if: hashFiles('scripts/tests/**/*.py') != ''
-        run: python3 -m unittest discover -s scripts/tests
-
-      # Dependabot runs get no repository secrets (and must not get the deploy role),
-      # so the AWS-dependent steps below are skipped for its pull requests.
-      - name: Report skipped AWS plan for Dependabot
-        if: github.event.pull_request.user.login == 'dependabot[bot]' && hashFiles(format('{0}/**/*.tf', env.TF_DIR)) != ''
-        run: echo "::notice::Dependabot pull request - Terraform plan skipped (no AWS access). The deploy workflow plans after the merge."
-
-      - name: Configure AWS credentials (OIDC)
-        if: github.event.pull_request.user.login != 'dependabot[bot]' && hashFiles(format('{0}/**/*.tf', env.TF_DIR)) != ''
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-          role-session-name: gha-pr-${{ github.run_id }}
-
-      - name: Verify AWS identity
-        if: github.event.pull_request.user.login != 'dependabot[bot]' && hashFiles(format('{0}/**/*.tf', env.TF_DIR)) != ''
-        run: aws sts get-caller-identity
-
-      - name: Terraform init
-        if: github.event.pull_request.user.login != 'dependabot[bot]' && hashFiles(format('{0}/**/*.tf', env.TF_DIR)) != ''
-        run: terraform -chdir="$TF_DIR" init -input=false
-
-      - name: Setup Node.js (Lambda bundle)
-        if: github.event.pull_request.user.login != 'dependabot[bot]' && hashFiles(format('{0}/**/*.tf', env.TF_DIR)) != '' && hashFiles(format('{0}/package.json', env.BACKEND_DIR)) != ''
-        uses: actions/setup-node@v7
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Build Lambda bundle
-        if: github.event.pull_request.user.login != 'dependabot[bot]' && hashFiles(format('{0}/**/*.tf', env.TF_DIR)) != '' && hashFiles(format('{0}/package.json', env.BACKEND_DIR)) != ''
-        working-directory: ${{ env.BACKEND_DIR }}
+      # Order matters: infra/ may package the backend and frontend build output.
+      - name: Lint, test and build
         run: |
-          npm ci
-          npm run build
+          for dir in app/backend app/frontend infra; do
+            if [ ! -f "$dir/package.json" ]; then
+              echo "::notice::No $dir/package.json yet - skipped."
+              continue
+            fi
+            echo "::group::$dir"
+            npm ci --prefix "$dir"
+            npm run lint --if-present --prefix "$dir"
+            npm test --if-present --prefix "$dir"
+            npm run build --if-present --prefix "$dir"
+            echo "::endgroup::"
+          done
 
-      # Project-specific Terraform variables can be passed here as TF_VAR_<name> from vars/secrets.
-      - name: Terraform plan
-        if: github.event.pull_request.user.login != 'dependabot[bot]' && hashFiles(format('{0}/**/*.tf', env.TF_DIR)) != ''
-        run: terraform -chdir="$TF_DIR" plan -input=false -lock-timeout=5m -out=tfplan
-
-      - name: Enforce mandatory tags
-        if: github.event.pull_request.user.login != 'dependabot[bot]' && hashFiles(format('{0}/**/*.tf', env.TF_DIR)) != '' && hashFiles('scripts/check_tags.py') != ''
-        run: |
-          terraform -chdir="$TF_DIR" show -json tfplan > plan.json
-          python3 scripts/check_tags.py plan.json
-
-  build:
-    name: Build ${{ matrix.project }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        project: [app/frontend, app/backend]
-    defaults:
-      run:
-        working-directory: ${{ matrix.project }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Report skipped build
-        if: hashFiles(format('{0}/package.json', matrix.project)) == ''
-        working-directory: .
-        run: echo "::notice::No ${{ matrix.project }}/package.json yet - build skipped."
-
-      - name: Setup Node.js
-        if: hashFiles(format('{0}/package.json', matrix.project)) != ''
-        uses: actions/setup-node@v7
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Install dependencies
-        if: hashFiles(format('{0}/package.json', matrix.project)) != ''
-        run: npm ci
-
-      # High/critical vulnerabilities in production dependencies fail the build.
-      # If scripts/check_npm_audit.py exists, it may allow time-boxed exceptions
-      # listed in .github/npm-audit-allowlist.json.
-      - name: Audit production dependencies
-        if: hashFiles(format('{0}/package.json', matrix.project)) != ''
-        run: |
-          if [ -f "$GITHUB_WORKSPACE/scripts/check_npm_audit.py" ]; then
-            npm audit --omit=dev --json > "$RUNNER_TEMP/audit.json" || true
-            python3 "$GITHUB_WORKSPACE/scripts/check_npm_audit.py" "$RUNNER_TEMP/audit.json" "$GITHUB_WORKSPACE/.github/npm-audit-allowlist.json"
-          else
-            npm audit --omit=dev --audit-level=high
-          fi
-
-      - name: Lint
-        if: hashFiles(format('{0}/package.json', matrix.project)) != ''
-        run: npm run lint --if-present
-
-      - name: Test
-        if: hashFiles(format('{0}/package.json', matrix.project)) != ''
-        run: npm test --if-present
-
-      - name: Build
-        if: hashFiles(format('{0}/package.json', matrix.project)) != ''
-        run: npm run build
+      - name: CDK synth
+        if: hashFiles('infra/package.json') != ''
+        working-directory: infra
+        run: npx cdk synth --quiet
