@@ -10,7 +10,7 @@ planner  →  dev  →  pr  →  human
 |---|---|---|
 | `planner` | Splits a request into small tickets | `docs/backlog/NNN-*.md` |
 | `dev` | Implements tickets with minimal tests, one commit per ticket | Code, tests |
-| `pr` | Runs the checks and opens the PR | PR description (the only report) |
+| `pr` | Runs the checks and opens the PR | PR description (the only report): progress bars, roadmap, cost estimate, critical security risks |
 
 For tiny changes, skip the planner.
 
@@ -19,8 +19,8 @@ For tiny changes, skip the planner.
 ```text
 CLAUDE.md               rules for all agents
 .claude/agents/         planner, dev, pr
-docs/architecture.md    goal, stack, structure, constraints, decisions
-docs/backlog/           tickets (format: 000-template.md)
+docs/architecture.md    goal, stack, structure, constraints, budget, roadmap, decisions
+docs/backlog/           tickets with status and milestone (format: 000-template.md)
 app/backend/            backend
 app/frontend/           frontend
 infra/                  AWS CDK app (TypeScript)
@@ -40,6 +40,6 @@ Deployment needs:
 ## Getting Started
 
 1. Create a repository from this template.
-2. Fill in `docs/architecture.md`.
+2. Fill in `docs/architecture.md`, including budget and roadmap.
 3. Ask the `planner` for tickets, let `dev` implement them, and have `pr` open the pull request.
 4. Review and merge.

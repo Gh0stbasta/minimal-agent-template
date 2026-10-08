@@ -10,7 +10,7 @@ planner  →  dev  →  pr  →  human
 
 1. **planner** (`.claude/agents/planner.md`) turns a request into small tickets in `docs/backlog/`.
 2. **dev** (`.claude/agents/dev.md`) implements tickets with minimal tests.
-3. **pr** (`.claude/agents/pr.md`) runs the checks and opens the pull request. The PR description is the only report.
+3. **pr** (`.claude/agents/pr.md`) runs the checks and opens the pull request. The PR description is the only report: progress, roadmap, cost estimate and critical security risks.
 
 For a tiny change, skip the planner and go straight to dev.
 
@@ -18,7 +18,7 @@ For a tiny change, skip the planner and go straight to dev.
 
 Read only what the task needs:
 
-- `docs/architecture.md` – goal, stack, structure, constraints, decisions
+- `docs/architecture.md` – goal, stack, structure, constraints, budget, roadmap, decisions
 - `docs/backlog/` – tickets
 
 ## Rules

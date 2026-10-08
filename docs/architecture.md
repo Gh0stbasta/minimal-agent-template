@@ -32,7 +32,16 @@ docs/backlog/   tickets
 
 ## Constraints
 
-_TBD: budget, compliance, data location, anything the agents must respect._
+- Budget: _TBD_ EUR per month (AWS)
+- _TBD: compliance, data location, anything else the agents must respect._
+
+## Roadmap
+
+Milestones in delivery order. Tickets reference a milestone by its ID.
+
+| ID | Milestone | Goal |
+|---|---|---|
+| M1 | MVP | _TBD_ |
 
 ## Decisions
 
