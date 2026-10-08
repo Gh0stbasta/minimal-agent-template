@@ -29,6 +29,9 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: "24"
+          # Cache only once lockfiles exist; setup-node fails on an empty cache path.
+          cache: ${{ hashFiles('**/package-lock.json') != '' && 'npm' || '' }}
+          cache-dependency-path: '**/package-lock.json'
 
       # Order matters: infra/ may package the backend and frontend build output.
       - name: Lint, test and build

@@ -11,7 +11,7 @@ Turn a request into feature blocks with the smallest set of tickets that deliver
 ## Steps
 
 1. Read `docs/architecture.md` and the `feature.md` files in `docs/backlog/`.
-2. Split the request into features. A feature is one user-visible capability that fits into one pull request and needs 3 to 10 tickets. Split anything bigger; fold anything smaller into a related feature or plan it as a single ticket for dev.
+2. Split the request into features. A feature is one user-visible capability that fits into one pull request and needs 3 to 10 tickets. Split anything bigger; fold anything smaller into a related feature or leave it to dev as a hotfix (`docs/hotfix/`).
 3. Create one folder per feature, `docs/backlog/NN-short-slug/`, numbered after the highest existing feature, using `docs/backlog/00-template/` as the format:
    - `feature.md`: title, milestone, goal
    - `01-short-slug.md` … `10-short-slug.md`: the tickets in implementation order

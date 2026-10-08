@@ -28,11 +28,15 @@ app/backend/    backend code
 app/frontend/   frontend code
 infra/          CDK app (deploys everything)
 docs/backlog/   one folder per feature: feature.md + tickets
+docs/hotfix/    one file per small change
 ```
+
+`app/backend`, `app/frontend` and `infra` are independent npm packages, each with its own committed `package-lock.json` (no workspaces). `infra/` pins `aws-cdk` and `aws-cdk-lib` in its `package.json`.
 
 ## Constraints
 
 - Usage per user: _TBD_ (cost estimates assume 50 API requests and 5 MB transfer per day if empty)
+- CDK stacks stay environment-agnostic: no context lookups (`fromLookup`) unless `cdk.context.json` is committed, so `cdk synth` works in CI without AWS credentials.
 - _TBD: compliance, data location, anything else the agents must respect._
 
 ## Roadmap
